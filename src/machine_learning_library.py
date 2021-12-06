@@ -19,6 +19,7 @@ or without the 2nd order polynomial transform? Explain.
 """
 
 from math import sqrt
+from os import curdir
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
@@ -144,19 +145,51 @@ def ImportData(file):
     # Define Training Data
     data = pandas.read_csv(file)
     data = (data.to_numpy())
-    label = (data.T[0]).T
-    # Set all 5 labels equal to -1
-    label[label==5] = -1
-    # Regularize data to be between 0 and 1
-    x = (data.T[1:]).T/255
 
+    # Define labels
+    lin_vel = data.T[-2]
+    ang_vel = data.T[-1]
+    label = [lin_vel, ang_vel] # [Lin_vel, Ang_vel]
+
+    # # Set all 5 labels equal to -1
+    # label[label==5] = -1
+
+    # # Regularize data to be between 0 and 1
+    # x = (data.T[1:]).T/255
+
+    # # Define training features vector (X_train) pad with data set with a 1
+    # feature = []
+    # ld_end = 1080 # Last index of Lidar data
+    # lidar_data = (data.T[:ld_end]).T # Lidar data feature
+    # lidar_left = (data.T[:540]).T # Left lidar data
+    # lidar_right = (data.T[541:ld_end]).T # Right lidar data
+    # goal_f = [data.T[ld_end + 1], data.T[ld_end + 2]] # Final goal [x, y] feature
+    # goal_fq = [data.T[ld_end + 3], data.T[ld_end + 4]] # Final goal quaternion [qk, qr] feature
+    # goal_l = [data.T[ld_end + 5], data.T[ld_end + 6]] # Local goal [x, y] feature
+    # goal_lq = [data.T[ld_end + 7], data.T[ld_end + 8]] # Local goal quaternion [qk, qr] feature
+    # robot_pos = [data.T[ld_end + 9], data.T[ld_end + 10]] # Robot pos [x, y] feature
+    # robot_q = [data.T[ld_end + 11], data.T[ld_end + 12]] # Robot orientation quaternion [qk, qr] feature
+    
     # Define training features vector (X_train) pad with data set with a 1
+    ld_end = 1080 # Last index of Lidar data
+    lidar_left = (data.T[:540]).T # Left lidar data
+    lidar_right = (data.T[541:ld_end]).T # Right lidar data
+    left = []
+    right = []
     feature = []
-    for curX in x:
-        cur_intn = intensity(curX.reshape((28, 28)))
-        cur_symm = symmetry(curX.reshape((28, 28)))
-        feature = np.append(feature,(1, cur_intn, cur_symm))
+    for i in range(len(lidar_left)):
+        left = np.append(left, sum(lidar_left[i]) / len(lidar_left[0]))
+    for i in range(len(lidar_right)):
+        right = np.append(right, sum(lidar_right[i]) / len(lidar_right[0]))
+    for i in range(len(left)):
+        feature = np.append(feature, (1, right[i], left[i]))
     feature = np.reshape(feature, (len(label), 3))
+
+    # for curX in x:
+    #     cur_intn = intensity(curX.reshape((28, 28)))
+    #     cur_symm = symmetry(curX.reshape((28, 28)))
+    #     feature = np.append(feature,(1, cur_intn, cur_symm))
+    # feature = np.reshape(feature, (len(label), 3))
 
     return feature, label
 
@@ -220,47 +253,47 @@ def TestErrorBound(features, e_in, m = 1):
 
 if __name__ == '__main__':
 
-    train_feature, train_label = ImportData('MNIST_data/mnist_train_binary.csv')
-    test_feature, test_label = ImportData('MNIST_data/mnist_test_binary.csv')
+    train_feature, train_label = ImportData('src/data/train_data/corridor_CSV/July22_1.csv')
+    test_feature, test_label = ImportData('src/data/test_data/July22_76.csv')
 
-    w_per, e_in_per = Perceptron(train_feature, train_label)
-    e_out_per = CalcError(test_feature, test_label, w_per)
-    train_e_bound_per = TrainErrorBound(train_feature, e_in_per)
-    test_e_bound_per = TestErrorBound(test_feature, e_in_per)
-    # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per}')
+    # w_per, e_in_per = Perceptron(train_feature, train_label)
+    # e_out_per = CalcError(test_feature, test_label, w_per)
+    # train_e_bound_per = TrainErrorBound(train_feature, e_in_per)
+    # test_e_bound_per = TestErrorBound(test_feature, e_in_per)
+    # # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per}')
 
-    w_poc, e_in_poc, e_out_poc = Pocket(train_feature, train_label, w_per, test_feature, test_label)
-    train_e_bound_poc = TrainErrorBound(train_feature, e_in_poc)
-    test_e_bound_poc = TestErrorBound(test_feature, e_in_poc)
-    # print(f'Pocket: w = {w_poc} Ein = {e_in} Eout = {e_out}')
+    # w_poc, e_in_poc, e_out_poc = Pocket(train_feature, train_label, w_per, test_feature, test_label)
+    # train_e_bound_poc = TrainErrorBound(train_feature, e_in_poc)
+    # test_e_bound_poc = TestErrorBound(test_feature, e_in_poc)
+    # # print(f'Pocket: w = {w_poc} Ein = {e_in} Eout = {e_out}')
 
-    # Part (a) Perceptron
-    # ShowData(train_feature, train_label, w_per, 'g', 'Perceptron Training Data', 'Perceptron')
-    # ShowData(test_feature, test_label, w_per, 'g', 'Perceptron Test Data', 'Perceptron')
-    # plt.show()
+    # # Part (a) Perceptron
+    # # ShowData(train_feature, train_label, w_per, 'g', 'Perceptron Training Data', 'Perceptron')
+    # # ShowData(test_feature, test_label, w_per, 'g', 'Perceptron Test Data', 'Perceptron')
+    # # plt.show()
 
-    # Part (a) Pocket
-    # ShowData(train_feature, train_label, w_poc, 'g', 'Perceptron + Pocket Training Data', 'Perceptron + Pocket')
-    # ShowData(test_feature, test_label, w_poc, 'g', 'Perceptron + Pocket Test Data', 'Perceptron + Pocket')
-    # plt.show()
+    # # Part (a) Pocket
+    # # ShowData(train_feature, train_label, w_poc, 'g', 'Perceptron + Pocket Training Data', 'Perceptron + Pocket')
+    # # ShowData(test_feature, test_label, w_poc, 'g', 'Perceptron + Pocket Test Data', 'Perceptron + Pocket')
+    # # plt.show()
 
-    # Part (b) Calculate Ein and Eout
-    print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per} In-Sample Error Bound: {train_e_bound_per} Test Error Bound: {test_e_bound_per}')
-    print(f'Perceptron + Pocket: w = {w_poc} Ein = {e_in_poc} Eout = {e_out_poc} In-Sample Error Bound: {train_e_bound_poc} Test Error Bound: {test_e_bound_poc}')
+    # # Part (b) Calculate Ein and Eout
+    # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per} In-Sample Error Bound: {train_e_bound_per} Test Error Bound: {test_e_bound_per}')
+    # print(f'Perceptron + Pocket: w = {w_poc} Ein = {e_in_poc} Eout = {e_out_poc} In-Sample Error Bound: {train_e_bound_poc} Test Error Bound: {test_e_bound_poc}')
 
-    # Part (d) 2nd Order Linear Regression
-    w_lin = LinReg(train_feature, train_label)
-    e_in_lin = CalcError(train_feature, train_label, w_lin)
-    e_out_lin = CalcError(test_feature, test_label, w_lin)
-    train_e_bound_lin = TrainErrorBound(train_feature, e_in_lin)
-    test_e_bound_lin = TestErrorBound(test_feature, e_in_lin)
+    # # Part (d) 2nd Order Linear Regression
+    # w_lin = LinReg(train_feature, train_label)
+    # e_in_lin = CalcError(train_feature, train_label, w_lin)
+    # e_out_lin = CalcError(test_feature, test_label, w_lin)
+    # train_e_bound_lin = TrainErrorBound(train_feature, e_in_lin)
+    # test_e_bound_lin = TestErrorBound(test_feature, e_in_lin)
     
-    w_poc_lin, e_in_poc_lin, e_out_poc_lin = Pocket(train_feature, train_label, w_lin, test_feature, test_label)
-    train_e_bound_poc_lin = TrainErrorBound(train_feature, e_in_poc_lin)
-    test_e_bound_poc_lin = TestErrorBound(test_feature, e_in_poc_lin)
+    # w_poc_lin, e_in_poc_lin, e_out_poc_lin = Pocket(train_feature, train_label, w_lin, test_feature, test_label)
+    # train_e_bound_poc_lin = TrainErrorBound(train_feature, e_in_poc_lin)
+    # test_e_bound_poc_lin = TestErrorBound(test_feature, e_in_poc_lin)
 
-    ShowData(train_feature, train_label, w_poc_lin, 'g', 'Linear Regression + Pocket Training Data', 'Linear Regression + Pocket')
+    # ShowData(train_feature, train_label, w_poc_lin, 'g', 'Linear Regression + Pocket Training Data', 'Linear Regression + Pocket')
     
-    print(f'Linear Regression: w = {w_lin} Ein = {e_in_lin} Eout = {e_out_lin} In-Sample Error Bound: {train_e_bound_lin} Test Error Bound: {test_e_bound_lin}')
-    print(f'Linear Regression + Pocket: w = {w_poc_lin} Ein = {e_in_poc_lin} Eout = {e_out_poc_lin} In-Sample Error Bound: {train_e_bound_poc_lin} Test Error Bound: {test_e_bound_poc_lin}')
-    plt.show()
+    # print(f'Linear Regression: w = {w_lin} Ein = {e_in_lin} Eout = {e_out_lin} In-Sample Error Bound: {train_e_bound_lin} Test Error Bound: {test_e_bound_lin}')
+    # print(f'Linear Regression + Pocket: w = {w_poc_lin} Ein = {e_in_poc_lin} Eout = {e_out_poc_lin} In-Sample Error Bound: {train_e_bound_poc_lin} Test Error Bound: {test_e_bound_poc_lin}')
+    # plt.show()
