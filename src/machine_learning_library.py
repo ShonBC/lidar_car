@@ -25,6 +25,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 import pandas
 import matplotlib.pyplot as plt
+from sklearn.linear_model import Perceptron
 
 def intensity(x):
     intn = np.mean(x)
@@ -285,8 +286,9 @@ if __name__ == '__main__':
     # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per} In-Sample Error Bound: {train_e_bound_per} Test Error Bound: {test_e_bound_per}')
     # print(f'Perceptron + Pocket: w = {w_poc} Ein = {e_in_poc} Eout = {e_out_poc} In-Sample Error Bound: {train_e_bound_poc} Test Error Bound: {test_e_bound_poc}')
 
-    # # Part (d) 2nd Order Linear Regression
-    # w_lin = LinReg(train_feature, train_label)
+    # Part (d) 2nd Order Linear Regression
+    w_lin = LinReg(train_feature, train_label)
+    print(w_lin)
     # e_in_lin = CalcError(train_feature, train_label, w_lin)
     # e_out_lin = CalcError(test_feature, test_label, w_lin)
     # train_e_bound_lin = TrainErrorBound(train_feature, e_in_lin)
