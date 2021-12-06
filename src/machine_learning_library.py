@@ -147,9 +147,13 @@ def ImportData(file):
     data = (data.to_numpy())
 
     # Define labels
-    lin_vel = data.T[-2]
-    ang_vel = data.T[-1]
-    label = [lin_vel, ang_vel] # [Lin_vel, Ang_vel]
+    lin_vel = (data.T[-2]).T
+    ang_vel = (data.T[-1]).T
+    label = []
+    for i in range(len(lin_vel)):
+        label = np.append(label, [lin_vel[i], ang_vel[i]])
+    label = np.reshape(label, (len(data), 2))
+    # label = [lin_vel, ang_vel] # [Lin_vel, Ang_vel]
 
     # # Set all 5 labels equal to -1
     # label[label==5] = -1
@@ -182,7 +186,7 @@ def ImportData(file):
     for i in range(len(lidar_right)):
         right = np.append(right, sum(lidar_right[i]) / len(lidar_right[0]))
     for i in range(len(left)):
-        feature = np.append(feature, (1, right[i], left[i]))
+        feature = np.append(feature, (1, left[i], right[i]))
     feature = np.reshape(feature, (len(label), 3))
 
     # for curX in x:
