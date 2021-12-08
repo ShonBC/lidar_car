@@ -186,25 +186,33 @@ def ImportData(file):
     #     feature = np.append(feature, (1, left[i], right[i]))
     # feature = np.reshape(feature, (len(label), 3))
 
+    # Define training features vector (X_train) pad with data set with a 1
     ld_end = 1080 # Last index of Lidar data
     ld_split = int(ld_end / 4) # Split lidar data into 67.5 degree segments
     lidar_1 = (data.T[:ld_split]).T # Lidar first 67.5 degree data
     lidar_2 = (data.T[ld_split:ld_split * 2]).T # Lidar next 67.5 degree to 135 degree data
     lidar_3 = (data.T[ld_split * 2:ld_split * 3]).T # Lidar first 135 degree to 202.5 degree data
     lidar_4 = (data.T[ld_split * 3:ld_split * 4]).T # Lidar first 202.5 degree to 270 degree data
+    goal_l = [data.T[ld_end + 5], data.T[ld_end + 6]] # Local goal [x, y] feature
+    goal_lq = [data.T[ld_end + 7], data.T[ld_end + 8]] # Local goal quaternion [qk, qr] feature
+    robot_pos = [data.T[ld_end + 9], data.T[ld_end + 10]] # Robot pos [x, y] feature
+    robot_q = [data.T[ld_end + 11], data.T[ld_end + 12]] # Robot orientation quaternion [qk, qr] feature
+    
+    pos_delta = np.subtract(goal_l, robot_pos) # Local goal - Robot pos [xl - xr, yl - yr] feature
+    ori_delta = np.subtract(goal_lq, robot_q) # Local goal quaternion - Robot orientation quaternion [qk_l - qk_r, qr_l - qr_r] feature
     l_1 = []
     l_2 = []
     l_3 = []
     l_4 = []
     feature = []
-    for i in range(len(lidar_1)): # Regularize data by taking the average 
+    for i in range(len(data)): # Regularize data by taking the average 
         l_1 = np.append(l_1, sum(lidar_1[i]) / len(lidar_1[0]))
         l_2 = np.append(l_2, sum(lidar_2[i]) / len(lidar_2[0]))
         l_3 = np.append(l_3, sum(lidar_3[i]) / len(lidar_3[0]))
         l_4 = np.append(l_4, sum(lidar_4[i]) / len(lidar_4[0]))
-    for i in range(len(lidar_1)):
-        feature = np.append(feature, (1, l_1[i], l_2[i], l_3[i], l_4[i]))
-    feature = np.reshape(feature, (len(label), 5))
+    for i in range(len(data)):
+        feature = np.append(feature, (1, l_1[i], l_2[i], l_3[i], l_4[i], pos_delta[0][i], pos_delta[1][i], ori_delta[0][i], ori_delta[1][i]))
+    feature = np.reshape(feature, (len(label), 9))
 
     return feature, label
 
@@ -244,7 +252,7 @@ def TrainErrorBound(features, e_in):
     e_out_bound = e_in + sqrt(a)
 
     return e_out_bound
-    
+   
 def TestErrorBound(features, e_in, m = 1):   
     """For a bound based on E_test, use the Hoeffding bound (inequality 2.1 in LFD book). 
     Here M=1 (# of times model has been trained), N=2072 (test size). \delta=0.5 (tolerance) is the same for both cases.
@@ -273,10 +281,9 @@ if __name__ == '__main__':
 
     lin_reg = LinearRegression()
     lin_reg.fit(train_feature, train_label)
-
-    """ Very close result to np.matmul()"""
     w_lin = lin_reg.coef_
     print(w_lin.T)
+    print(lin_reg.score(train_feature, train_label))
 
     # w_per, e_in_per = Perceptron(train_feature, train_label)
     # e_out_per = CalcError(test_feature, test_label, w_per)
