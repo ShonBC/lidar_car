@@ -20,13 +20,23 @@ or without the 2nd order polynomial transform? Explain.
 
 from math import sqrt
 from os import curdir
+# from keras.metrics import MeanAbsoluteError, MeanSquaredError
 import numpy as np
 from numpy.lib.shape_base import split
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import SGDClassifier
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn import svm
+from sklearn.neural_network import MLPClassifier
 import pandas
 import matplotlib.pyplot as plt
 from sklearn.linear_model import Perceptron
+from keras.models import Sequential
+from keras.layers import Dense
+import tensorflow as tf
 
 def intensity(x):
     intn = np.mean(x)
@@ -186,7 +196,7 @@ def ImportData(file):
     #     feature = np.append(feature, (1, left[i], right[i]))
     # feature = np.reshape(feature, (len(label), 3))
 
-    # Define training features vector (X_train) pad with data set with a 1
+    # Define features vector (X_train/ X_test) pad with data set with a 1
     ld_end = 1080 # Last index of Lidar data
     ld_split = int(ld_end / 4) # Split lidar data into 67.5 degree segments
     lidar_1 = (data.T[:ld_split]).T # Lidar first 67.5 degree data
@@ -210,7 +220,14 @@ def ImportData(file):
         l_2 = np.append(l_2, sum(lidar_2[i]) / len(lidar_2[0]))
         l_3 = np.append(l_3, sum(lidar_3[i]) / len(lidar_3[0]))
         l_4 = np.append(l_4, sum(lidar_4[i]) / len(lidar_4[0]))
-    for i in range(len(data)):
+    
+    # Regularize by dividing my max value of each set of lidar data
+    l_1 = l_1 / np.amax(l_1)
+    l_2 = l_2 / np.amax(l_2)
+    l_3 = l_3 / np.amax(l_3)
+    l_4 = l_4 / np.amax(l_4)
+
+    for i in range(len(data)): # Link all data in an array and reshape to match the number of features padded data set with a 1
         feature = np.append(feature, (1, l_1[i], l_2[i], l_3[i], l_4[i], pos_delta[0][i], pos_delta[1][i], ori_delta[0][i], ori_delta[1][i]))
     feature = np.reshape(feature, (len(label), 9))
 
@@ -274,16 +291,89 @@ def TestErrorBound(features, e_in, m = 1):
 
     return e_out_bound
 
+def Test(x, y, y_test):
+    lin_reg = LinearRegression()
+    lin_reg.fit(x, y)
+    w =lin_reg()
+    # pocket
+    # loop:
+    # pick misclas point
+    # error 
+    # update weights
+    # compare error with previous w error
+    # repeat until t_max
+
+
+    y_preditct = lin_reg.predict()
+    print(np.sum((y_preditct - y_test)**2) / np.sum(y_test**2))
+
+def RegModel(x, y):
+    regr_1 = DecisionTreeRegressor(max_depth=0.1)
+    regr_2 = DecisionTreeRegressor(max_depth=10)
+    regr_1.fit(x, y)
+    regr_2.fit(x, y)
+
+    return regr_1, regr_2
+
 if __name__ == '__main__':
 
     train_feature, train_label = ImportData('src/data/train_data/corridor_CSV/July22_1.csv')
-    test_feature, test_label = ImportData('src/data/test_data/July22_76.csv')
+    test_feature, test_label = ImportData('src/data/test_data/July22_68.csv')
 
+    # Linear Regression
     lin_reg = LinearRegression()
     lin_reg.fit(train_feature, train_label)
     w_lin = lin_reg.coef_
-    print(w_lin.T)
+    # print(w_lin.T)
     print(lin_reg.score(train_feature, train_label))
+    lin_reg_labels = lin_reg.predict(test_feature)
+    lin_reg_err = mean_squared_error(test_label, lin_reg_labels)
+    print(f"Lin_reg_err: {lin_reg_err}")
+    # y_new = lin_reg.predict(test_feature)
+    # for i in range(len(test_feature)):
+    #     # print(accuracy_score(lin_reg.predict(test_feature[i]), test_label[i]))
+    #     print(f"x: {test_feature[i]}, pred_label: {y_new[i]}, actual_label: {test_label[i]}")
+
+    # Decision Tree Regression
+    reg_1, reg_2 = RegModel(train_feature, train_label)
+    reg_1_labels = reg_1.predict(test_feature)
+    reg_1_err = mean_squared_error(test_label, reg_1_labels)
+    print(f"Reg_err_1: {reg_1_err}")
+    reg_2_labels = reg_2.predict(test_feature)
+    reg_2_err = mean_squared_error(test_label, reg_2_labels)
+    print(f"Reg_err_2: {reg_2_err}")
+
+    # # Multi-Layer-Perceptron-Classifier
+    # mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(15,), random_state=1)
+    # mlp.fit(train_label, train_label) 
+
+    # Stochastic Gradient Decent
+    # sgd_model = SGDClassifier(loss="hinge", penalty="l2", max_iter=5)
+    # MultiOutputRegressor(sgd_model).fit(train_feature, train_label)
+    # w_sgd = lin_reg.coef_
+    # print(w_sgd.T)
+    # print(sgd_model.score(train_feature, train_label))
+
+    initializer = tf.keras.initializers.HeUniform()
+    # model = tf.keras.Sequential([
+    #     tf.keras.layers.Dense(40, input_dim=len(train_feature.T), kernel_initializer = initializer, activation='sigmoid'),
+
+    # ])
+    # model = Sequential([
+    #     Dense(40, input_dim=len(train_feature.T), kernel_initializer = initializer, activation='sigmoid'),
+    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
+    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
+    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
+    #     Dense(2)       
+    # ])
+    # model.add(Dense(12, input_dim=8, activation='relu'))
+    # model.add(Dense(8, activation='relu'))
+    # model.add(Dense(1, activation='sigmoid'))
+    # model.compile(loss=MeanAbsoluteError(), optimizer='adam', metrics=['accuracy'])
+    # model.fit(train_feature, train_label, epochs=150, batch_size=10)
+    # # evaluate the keras model
+    # _, accuracy = model.evaluate(train_feature, train_label)
+    # print('Accuracy: %.2f' % (accuracy*100))
 
     # w_per, e_in_per = Perceptron(train_feature, train_label)
     # e_out_per = CalcError(test_feature, test_label, w_per)
