@@ -1,26 +1,6 @@
-"""
-(15 pts) Using the image data uploaded on ELMS, perform classification using
-the following algorithms for non-separable data:
-(a) Perceptron algorithm.
-(b) Pocket algorithm.
-Use your chosen algorithm to find the best separator you can using the train-
-ing data only (you can create your own features). The output is +1 if the
-example is a 1 and -1 for a 5.
-(a) Give separate plots of the training and test data, together with the sep-
-arators.
-(b) Compute Ein on your training data and Etest, the test error on the test
-data.
-(c) Obtain a bound on the true out-of-sample error. You should get two
-bounds, one based on Ein and one based on Etest. Use a tolerance δ =
-0.05. Which is the better bound?
-(d) Now repeat using a 2nd order polynomial transform.
-(e) As your final deliverable to a customer, would you use the model with
-or without the 2nd order polynomial transform? Explain.
-"""
-
 from math import sqrt
 from os import curdir
-# from keras.metrics import MeanAbsoluteError, MeanSquaredError
+from keras.metrics import MeanSquaredError
 import numpy as np
 from numpy.lib.shape_base import split
 from sklearn.linear_model import LinearRegression
@@ -36,6 +16,7 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import Perceptron
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.losses import MeanAbsoluteError
 import tensorflow as tf
 
 def intensity(x):
@@ -123,7 +104,7 @@ def LinReg(feature, label, show_plot=False):
     lin_reg = LinearRegression()
     lin_reg.fit(feature, label)
 
-    """ Very close result to np.matmul()"""
+    # """ Very close result to np.matmul()"""
     # w_lin = lin_reg.coef_
 
     w_lin = np.matmul(np.matmul(np.linalg.inv(np.matmul(feature.T,feature)),feature.T),label)
@@ -154,6 +135,19 @@ def CalcError(feature, label, weight):
     return error
 
 def ImportData(file):
+    """Import data and group the lidar protion into 4. 
+    The robot position/orientation and local goal position/orientation 
+    were grouped into deltas. The data was then regularized by averaging 
+    and dividing by the max in their respective columns to scale them 
+    between 0 and 1.
+
+    Args:
+        file (str): Relative path to csv file
+
+    Returns:
+        [list]: Features and their respective Labels
+    """
+
     # Define Training Data
     data = pandas.read_csv(file)
     data = (data.to_numpy())
@@ -165,36 +159,6 @@ def ImportData(file):
     for i in range(len(lin_vel)):
         label = np.append(label, [lin_vel[i], ang_vel[i]])
     label = np.reshape(label, (len(data), 2))
-
-    # # Define training features vector (X_train) pad with data set with a 1
-    # feature = []
-    # ld_end = 1080 # Last index of Lidar data
-    # lidar_data = (data.T[:ld_end]).T # Lidar data feature
-    # lidar_left = (data.T[:540]).T # Left lidar data
-    # lidar_right = (data.T[541:ld_end]).T # Right lidar data
-    # goal_f = [data.T[ld_end + 1], data.T[ld_end + 2]] # Final goal [x, y] feature
-    # goal_fq = [data.T[ld_end + 3], data.T[ld_end + 4]] # Final goal quaternion [qk, qr] feature
-    # goal_l = [data.T[ld_end + 5], data.T[ld_end + 6]] # Local goal [x, y] feature
-    # goal_lq = [data.T[ld_end + 7], data.T[ld_end + 8]] # Local goal quaternion [qk, qr] feature
-    # robot_pos = [data.T[ld_end + 9], data.T[ld_end + 10]] # Robot pos [x, y] feature
-    # robot_q = [data.T[ld_end + 11], data.T[ld_end + 12]] # Robot orientation quaternion [qk, qr] feature
-    
-    # Define training features vector (X_train) pad with data set with a 1
-    # ld_end = 1080 # Last index of Lidar data
-    # lidar_left = (data.T[:540]).T # Left lidar data
-    # lidar_right = (data.T[541:ld_end]).T # Right lidar data
-
-
-    # left = []
-    # right = []
-    # feature = []
-    # for i in range(len(lidar_left)):
-    #     left = np.append(left, sum(lidar_left[i]) / len(lidar_left[0]))
-    # for i in range(len(lidar_right)):
-    #     right = np.append(right, sum(lidar_right[i]) / len(lidar_right[0]))
-    # for i in range(len(left)):
-    #     feature = np.append(feature, (1, left[i], right[i]))
-    # feature = np.reshape(feature, (len(label), 3))
 
     # Define features vector (X_train/ X_test) pad with data set with a 1
     ld_end = 1080 # Last index of Lidar data
@@ -308,6 +272,16 @@ def Test(x, y, y_test):
     print(np.sum((y_preditct - y_test)**2) / np.sum(y_test**2))
 
 def RegModel(x, y):
+    """Train a model using Decision Tree Regression.
+
+    Args:
+        x (list): List of feature data
+        y (list): List of label data
+
+    Returns:
+        [DecisionTreeRegressor]: Trained models using max dpeth of 0.1 and 10
+    """
+
     regr_1 = DecisionTreeRegressor(max_depth=0.1)
     regr_2 = DecisionTreeRegressor(max_depth=10)
     regr_1.fit(x, y)
@@ -324,24 +298,29 @@ if __name__ == '__main__':
     lin_reg = LinearRegression()
     lin_reg.fit(train_feature, train_label)
     w_lin = lin_reg.coef_
-    # print(w_lin.T)
+    print(f"Linear Regression Weights: {w_lin.T}")
     print(lin_reg.score(train_feature, train_label))
     lin_reg_labels = lin_reg.predict(test_feature)
     lin_reg_err = mean_squared_error(test_label, lin_reg_labels)
     print(f"Lin_reg_err: {lin_reg_err}")
-    # y_new = lin_reg.predict(test_feature)
-    # for i in range(len(test_feature)):
-    #     # print(accuracy_score(lin_reg.predict(test_feature[i]), test_label[i]))
-    #     print(f"x: {test_feature[i]}, pred_label: {y_new[i]}, actual_label: {test_label[i]}")
 
     # Decision Tree Regression
     reg_1, reg_2 = RegModel(train_feature, train_label)
     reg_1_labels = reg_1.predict(test_feature)
+    # w_reg1 = reg_1.coef_
     reg_1_err = mean_squared_error(test_label, reg_1_labels)
+    reg_1_train_accuracy = reg_1.score(train_feature, train_label)
+    reg_1_test_accuracy = reg_1.score(test_feature, test_label)
     print(f"Reg_err_1: {reg_1_err}")
+    print(f"Reg_1_test_accuracy: {reg_1_train_accuracy}") # https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html#sklearn.tree.DecisionTreeRegressor.score
+    print(f"Reg_1_test_accuracy: {reg_1_test_accuracy}")
     reg_2_labels = reg_2.predict(test_feature)
     reg_2_err = mean_squared_error(test_label, reg_2_labels)
+    reg_2_train_accuracy = reg_2.score(train_feature, train_label)
+    reg_2_test_accuracy = reg_2.score(test_feature, test_label)
     print(f"Reg_err_2: {reg_2_err}")
+    print(f"Reg_2_test_accuracy: {reg_2_train_accuracy}")
+    print(f"Reg_2_test_accuracy: {reg_2_test_accuracy}")
 
     # # Multi-Layer-Perceptron-Classifier
     # mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(15,), random_state=1)
@@ -355,66 +334,19 @@ if __name__ == '__main__':
     # print(sgd_model.score(train_feature, train_label))
 
     initializer = tf.keras.initializers.HeUniform()
-    # model = tf.keras.Sequential([
-    #     tf.keras.layers.Dense(40, input_dim=len(train_feature.T), kernel_initializer = initializer, activation='sigmoid'),
 
-    # ])
-    # model = Sequential([
-    #     Dense(40, input_dim=len(train_feature.T), kernel_initializer = initializer, activation='sigmoid'),
-    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
-    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
-    #     Dense(20, activation='sigmoid', kernel_initializer = initializer),
-    #     Dense(2)       
-    # ])
-    # model.add(Dense(12, input_dim=8, activation='relu'))
-    # model.add(Dense(8, activation='relu'))
-    # model.add(Dense(1, activation='sigmoid'))
-    # model.compile(loss=MeanAbsoluteError(), optimizer='adam', metrics=['accuracy'])
-    # model.fit(train_feature, train_label, epochs=150, batch_size=10)
-    # # evaluate the keras model
-    # _, accuracy = model.evaluate(train_feature, train_label)
-    # print('Accuracy: %.2f' % (accuracy*100))
+    model = Sequential([
+        Dense(40, input_dim=len(train_feature.T), kernel_initializer = initializer, activation='sigmoid'),
+        Dense(20, activation='sigmoid', kernel_initializer = initializer),
+        Dense(10, activation='sigmoid', kernel_initializer = initializer),
+        Dense(4, activation='sigmoid', kernel_initializer = initializer),
+        Dense(2)    
+    ])
 
-    # w_per, e_in_per = Perceptron(train_feature, train_label)
-    # e_out_per = CalcError(test_feature, test_label, w_per)
-    # train_e_bound_per = TrainErrorBound(train_feature, e_in_per)
-    # test_e_bound_per = TestErrorBound(test_feature, e_in_per)
-    # # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per}')
-
-    # w_poc, e_in_poc, e_out_poc = Pocket(train_feature, train_label, w_per, test_feature, test_label)
-    # train_e_bound_poc = TrainErrorBound(train_feature, e_in_poc)
-    # test_e_bound_poc = TestErrorBound(test_feature, e_in_poc)
-    # # print(f'Pocket: w = {w_poc} Ein = {e_in} Eout = {e_out}')
-
-    # # Part (a) Perceptron
-    # # ShowData(train_feature, train_label, w_per, 'g', 'Perceptron Training Data', 'Perceptron')
-    # # ShowData(test_feature, test_label, w_per, 'g', 'Perceptron Test Data', 'Perceptron')
-    # # plt.show()
-
-    # # Part (a) Pocket
-    # # ShowData(train_feature, train_label, w_poc, 'g', 'Perceptron + Pocket Training Data', 'Perceptron + Pocket')
-    # # ShowData(test_feature, test_label, w_poc, 'g', 'Perceptron + Pocket Test Data', 'Perceptron + Pocket')
-    # # plt.show()
-
-    # # Part (b) Calculate Ein and Eout
-    # print(f'Perceptron: w = {w_per} Ein = {e_in_per} Eout = {e_out_per} In-Sample Error Bound: {train_e_bound_per} Test Error Bound: {test_e_bound_per}')
-    # print(f'Perceptron + Pocket: w = {w_poc} Ein = {e_in_poc} Eout = {e_out_poc} In-Sample Error Bound: {train_e_bound_poc} Test Error Bound: {test_e_bound_poc}')
-
-    # Part (d) 2nd Order Linear Regression
-    # w_lin = LinReg(train_feature, train_label)
-    # print(w_lin)
-
-    # e_in_lin = CalcError(train_feature, train_label, w_lin)
-    # e_out_lin = CalcError(test_feature, test_label, w_lin)
-    # train_e_bound_lin = TrainErrorBound(train_feature, e_in_lin)
-    # test_e_bound_lin = TestErrorBound(test_feature, e_in_lin)
-    
-    # w_poc_lin, e_in_poc_lin, e_out_poc_lin = Pocket(train_feature, train_label, w_lin, test_feature, test_label)
-    # train_e_bound_poc_lin = TrainErrorBound(train_feature, e_in_poc_lin)
-    # test_e_bound_poc_lin = TestErrorBound(test_feature, e_in_poc_lin)
-
-    # ShowData(train_feature, train_label, w_poc_lin, 'g', 'Linear Regression + Pocket Training Data', 'Linear Regression + Pocket')
-    
-    # print(f'Linear Regression: w = {w_lin} Ein = {e_in_lin} Eout = {e_out_lin} In-Sample Error Bound: {train_e_bound_lin} Test Error Bound: {test_e_bound_lin}')
-    # print(f'Linear Regression + Pocket: w = {w_poc_lin} Ein = {e_in_poc_lin} Eout = {e_out_poc_lin} In-Sample Error Bound: {train_e_bound_poc_lin} Test Error Bound: {test_e_bound_poc_lin}')
-    # plt.show()
+    model.compile(loss=MeanAbsoluteError(), optimizer='adam', metrics=['accuracy'])
+    seq_labels = model.predict(test_feature)
+    seq_labels_train = model.predict(train_feature)
+    seq_err = mean_squared_error(test_label, seq_labels)
+    seq_err_train = mean_squared_error(train_label, seq_labels_train)    
+    print(f"Test_Sequential_err: {seq_err}")
+    print(f"Train_Sequential_err: {seq_err_train}")
