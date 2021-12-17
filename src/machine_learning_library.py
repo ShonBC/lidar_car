@@ -1,23 +1,22 @@
 from math import sqrt
 from os import curdir
-from keras.metrics import MeanSquaredError
 import numpy as np
 from numpy.lib.shape_base import split
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import SGDClassifier
-from sklearn.multioutput import MultiOutputRegressor
+from sklearn.linear_model import LinearRegression, LogisticRegression, SGDClassifier
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import accuracy_score, mean_squared_error
-from sklearn import svm
-from sklearn.neural_network import MLPClassifier
 import pandas
 import matplotlib.pyplot as plt
-from sklearn.linear_model import Perceptron
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.losses import MeanAbsoluteError
 import tensorflow as tf
+from sklearn.model_selection import learning_curve
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.linear_model import Perceptron
+from sklearn import svm
+from sklearn.neural_network import MLPClassifier
+from keras.metrics import MeanSquaredError
 
 def intensity(x):
     intn = np.mean(x)
@@ -284,10 +283,32 @@ def RegModel(x, y):
 
     regr_1 = DecisionTreeRegressor(max_depth=0.1)
     regr_2 = DecisionTreeRegressor(max_depth=10)
+    regr_3 = DecisionTreeRegressor()
     regr_1.fit(x, y)
     regr_2.fit(x, y)
+    regr_3.fit(x, y)
 
-    return regr_1, regr_2
+    return regr_1, regr_2, regr_3
+
+def TrainValCurves(model, train_feature, train_label, model_name):
+
+    train_sizes, train_scores, test_scores = learning_curve(model, train_feature, train_label)
+    x_plot = train_sizes
+    train_mean = np.mean(train_scores, axis=1)
+    train_std = np.std(train_scores, axis=1)
+    test_mean = np.mean(test_scores, axis=1)
+    test_std = np.std(test_scores, axis=1)
+    plt.subplots(1, figsize=(10,10))
+    plt.plot(train_sizes, train_mean, color="r",  label="Training score")
+    plt.plot(train_sizes, test_mean, color="g", label="Cross-validation score")
+
+    plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#DDDDDD")
+    plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#DDDDDD")
+
+    plt.title(f"{model_name} Learning Curve")
+    plt.xlabel("Training Set Size"), plt.ylabel("Accuracy Score"), plt.legend(loc="best")
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == '__main__':
 
@@ -298,29 +319,51 @@ if __name__ == '__main__':
     lin_reg = LinearRegression()
     lin_reg.fit(train_feature, train_label)
     w_lin = lin_reg.coef_
+    lin_reg_in_score = lin_reg.score(train_feature, train_label)
+    lin_reg_out_score = lin_reg.score(test_feature, test_label)
     print(f"Linear Regression Weights: {w_lin.T}")
-    print(lin_reg.score(train_feature, train_label))
-    lin_reg_labels = lin_reg.predict(test_feature)
-    lin_reg_err = mean_squared_error(test_label, lin_reg_labels)
-    print(f"Lin_reg_err: {lin_reg_err}")
+    print(f"Linear Regression Out of Sample Accuracy Score: {lin_reg_out_score}")
+    print(f"Linear Regression  In Sample Accuracy Score: {lin_reg_in_score}")
+    lin_reg_out_labels = lin_reg.predict(test_feature)
+    lin_reg_out_err = mean_squared_error(test_label, lin_reg_out_labels)
+    print(f"Lin_out_reg_err: {lin_reg_out_err}")
+    lin_reg_in_labels = lin_reg.predict(train_feature)
+    lin_reg_in_err = mean_squared_error(train_label, lin_reg_in_labels)
+    print(f"Lin_reg_in_err: {lin_reg_in_err}")
 
     # Decision Tree Regression
-    reg_1, reg_2 = RegModel(train_feature, train_label)
-    reg_1_labels = reg_1.predict(test_feature)
+    reg_1, reg_2, reg_3 = RegModel(train_feature, train_label)
+    reg_1_out_labels = reg_1.predict(test_feature)
+    reg_1_in_labels = reg_1.predict(train_feature)
     # w_reg1 = reg_1.coef_
-    reg_1_err = mean_squared_error(test_label, reg_1_labels)
+    reg_1_out_err = mean_squared_error(test_label, reg_1_out_labels)
+    reg_1_in_err = mean_squared_error(train_label, reg_1_in_labels)
     reg_1_train_accuracy = reg_1.score(train_feature, train_label)
     reg_1_test_accuracy = reg_1.score(test_feature, test_label)
-    print(f"Reg_err_1: {reg_1_err}")
-    print(f"Reg_1_test_accuracy: {reg_1_train_accuracy}") # https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html#sklearn.tree.DecisionTreeRegressor.score
+    print(f"Reg_out_err_1: {reg_1_out_err}")
+    print(f"Reg_in_err_1: {reg_1_in_err}")
+    print(f"Reg_1_train_accuracy: {reg_1_train_accuracy}") # https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html#sklearn.tree.DecisionTreeRegressor.score
     print(f"Reg_1_test_accuracy: {reg_1_test_accuracy}")
-    reg_2_labels = reg_2.predict(test_feature)
-    reg_2_err = mean_squared_error(test_label, reg_2_labels)
+    reg_2_out_labels = reg_2.predict(test_feature)
+    reg_2_in_labels = reg_2.predict(train_feature)
+    reg_2_out_err = mean_squared_error(test_label, reg_2_out_labels)
+    reg_2_in_err = mean_squared_error(train_label, reg_2_in_labels)
     reg_2_train_accuracy = reg_2.score(train_feature, train_label)
     reg_2_test_accuracy = reg_2.score(test_feature, test_label)
-    print(f"Reg_err_2: {reg_2_err}")
-    print(f"Reg_2_test_accuracy: {reg_2_train_accuracy}")
+    print(f"Reg_out_err_2: {reg_2_out_err}")
+    print(f"Reg_in_ err_2: {reg_2_in_err}")
+    print(f"Reg_2_train_accuracy: {reg_2_train_accuracy}")
     print(f"Reg_2_test_accuracy: {reg_2_test_accuracy}")
+    reg_3_out_labels = reg_3.predict(test_feature)
+    reg_3_in_labels = reg_3.predict(train_feature)
+    reg_3_out_err = mean_squared_error(test_label, reg_3_out_labels)
+    reg_3_in_err = mean_squared_error(train_label, reg_3_in_labels)
+    reg_3_train_accuracy = reg_3.score(train_feature, train_label)
+    reg_3_test_accuracy = reg_3.score(test_feature, test_label)
+    print(f"Reg_out_err_3: {reg_3_out_err}")
+    print(f"Reg_in_ err_3: {reg_3_in_err}")
+    print(f"Reg_3_train_accuracy: {reg_3_train_accuracy}")
+    print(f"Reg_3_test_accuracy: {reg_3_test_accuracy}")
 
     # # Multi-Layer-Perceptron-Classifier
     # mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(15,), random_state=1)
@@ -333,6 +376,7 @@ if __name__ == '__main__':
     # print(w_sgd.T)
     # print(sgd_model.score(train_feature, train_label))
 
+    # Sequential Neural Network
     initializer = tf.keras.initializers.HeUniform()
 
     model = Sequential([
@@ -344,9 +388,35 @@ if __name__ == '__main__':
     ])
 
     model.compile(loss=MeanAbsoluteError(), optimizer='adam', metrics=['accuracy'])
+    history = model.fit(train_feature, train_label, batch_size=100, epochs=10, validation_data=(test_feature, test_label))
     seq_labels = model.predict(test_feature)
     seq_labels_train = model.predict(train_feature)
     seq_err = mean_squared_error(test_label, seq_labels)
     seq_err_train = mean_squared_error(train_label, seq_labels_train)    
     print(f"Test_Sequential_err: {seq_err}")
     print(f"Train_Sequential_err: {seq_err_train}")
+
+    # Learning Curves
+    TrainValCurves(lin_reg, train_feature, train_label, "Linear Regression")
+    TrainValCurves(reg_1, train_feature, train_label, "Decision Regression Tree (max_depth = 1)")
+    TrainValCurves(reg_2, train_feature, train_label, "Decision Regression Tree (max_depth = 10)")
+    TrainValCurves(reg_3, train_feature, train_label, "Decision Regression Tree (max_depth = default)")
+    TrainValCurves(model, train_feature, train_label, "Sequential Neural Network Model")    
+    
+    # Sequential Neural Network Accuracy and Loss Plots
+    # summarize history for accuracy
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('Sequential Model Accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Sequential Model Loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
